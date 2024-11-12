@@ -110,7 +110,7 @@ public class RobotTeleopPOV_Linear extends LinearOpMode {
             arm.setPower(PIDControl(1000, arm.getVelocity()));
 
             if(gamepad1.dpad_up){
-                arm.setPower(PIDControl(1500, arm.getVelocity()));
+                arm.setPower(PIDControl(1000, arm.getVelocity()));
             }
 
             // Run wheels in POV mode (note: The joystick goes negative when pushed forward, so negate it)
