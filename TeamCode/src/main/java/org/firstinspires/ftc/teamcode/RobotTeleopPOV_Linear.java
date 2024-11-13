@@ -59,24 +59,13 @@ public class RobotTeleopPOV_Linear extends LinearOpMode {
     private DcMotorEx brDrive;
     private DcMotorEx blDrive;
     private DcMotorEx flDrive;
-    private DcMotorEx arm ;
-    double integralSum = 0;
-    double Kp = 0;
-    double Ki = 0;
-    double Kd = 0;
-    double Kf =1;
-    private double lastError = 0;
-    ElapsedTime timer = new ElapsedTime();
+    private DcMotorEx arm;
+    private final PIDController armPidController = new PIDController(1, 0.0, 0.0);
+    private final double ARM_MOTOR_ENCODER_TICKS_PER_REVOLUTION = 1425.1;
+    private final double ARM_OUTPUT_SPROCKET_TEETH = 18;
+    private final double ARM_INPUT_SPROCKET_TEETH = 10;
 
-    private double PIDControl(double reference,double state){
-        double error = reference -state;
-        integralSum += error * timer.seconds();
-        double derivative =(error -lastError) / timer.seconds();
-        lastError = error;
-        timer.reset();
-        double output = (error * Kp) + (derivative *Kd) + (integralSum +Ki) + (reference*Kf);
-        return output;
-    }
+
     @Override
     public void runOpMode() {
 
@@ -92,6 +81,7 @@ public class RobotTeleopPOV_Linear extends LinearOpMode {
         // Note: The settings here assume direct drive on left and right wheels.  Gear Reduction or 90 Deg drives may require direction flips
         blDrive.setDirection(DcMotor.Direction.REVERSE);
         flDrive.setDirection(DcMotor.Direction.REVERSE);
+        arm.setDirection(DcMotor.Direction.REVERSE);
 
         // If there are encoders connected, switch to RUN_USING_ENCODER mode for greater accuracy
         // leftDrive.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
@@ -107,12 +97,6 @@ public class RobotTeleopPOV_Linear extends LinearOpMode {
         // run until the end of the match (driver presses STOP)
         while (opModeIsActive()) {
 
-            /*arm.setPower(PIDControl(1000, arm.getVelocity()));
-
-            if(gamepad1.dpad_up){
-                arm.setPower(PIDControl(1000, arm.getVelocity()));
-            }*/
-
             // Run wheels in POV mode (note: The joystick goes negative when pushed forward, so negate it)
             // In this mode the Left stick moves the robot fwd and back, the Right stick turns left and right.
             // This way it's also easy to just drive straight, or just turn.
@@ -124,6 +108,21 @@ public class RobotTeleopPOV_Linear extends LinearOpMode {
             blDrive.setPower(fb - lr + turn);
             flDrive.setPower(fb + lr - turn);
 
+            double rotationsAtMotorShaft = arm.getCurrentPosition() / ARM_MOTOR_ENCODER_TICKS_PER_REVOLUTION;
+            double rotationsAtArmShaft = rotationsAtMotorShaft * (ARM_INPUT_SPROCKET_TEETH/ARM_OUTPUT_SPROCKET_TEETH);
+
+            if (gamepad1.dpad_up) {
+                armPidController.setPoint = -0.25;
+            } else if (gamepad1.dpad_down) {
+                armPidController.setPoint = 0.0;
+            }
+
+            armPidController.update(rotationsAtArmShaft);
+            //arm.setPower( armPidController.getOutput() );
+
+            telemetry.addData("Arm PID Output", armPidController.getOutput());
+            telemetry.addData("Arm PID Setpoint", armPidController.setPoint);
+            telemetry.addData("Arm Position", rotationsAtArmShaft);
 
             telemetry.update();
 
